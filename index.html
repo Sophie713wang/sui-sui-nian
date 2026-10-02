@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7eef7">
+<title>岁岁廿</title>
+<style>
+:root{--bg:#f8f1f7;--card:rgba(255,255,255,.72);--line:#eadfea;--text:#443b47;--muted:#938794;--pink:#d99bb8;--pink2:#efd2e0;--shadow:0 12px 35px rgba(93,65,88,.09)}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#fbf6fa,#f3eef8);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans",sans-serif;min-height:100vh}
+.app{max-width:720px;margin:auto;padding:18px 14px 90px}.top{display:flex;justify-content:space-between;align-items:center;margin:4px 2px 18px}.brand{font-size:24px;font-weight:700;letter-spacing:.08em}.sub{font-size:12px;color:var(--muted);margin-top:4px}
+nav{display:flex;gap:7px}.nav{border:0;background:transparent;color:var(--muted);padding:9px 10px;border-radius:14px}.nav.active{background:#fff8fc;color:#a86d8d;box-shadow:var(--shadow)}
+.page{display:none}.page.active{display:block}.card{background:var(--card);border:1px solid rgba(255,255,255,.9);box-shadow:var(--shadow);border-radius:22px;padding:16px;margin-bottom:13px;backdrop-filter:blur(16px)}
+.chat{height:58vh;min-height:420px;overflow:auto;padding:6px 2px}.bubble{max-width:86%;padding:11px 13px;border-radius:17px;margin:9px 0;line-height:1.6;font-size:15px;white-space:pre-wrap}.me{margin-left:auto;background:#efd7e3;border-bottom-right-radius:6px}.ai{background:#fff;border:1px solid var(--line);border-bottom-left-radius:6px}
+.composer{display:flex;gap:8px;margin-top:10px}.composer textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:16px;padding:12px;background:#fffdfd;outline:none;font:inherit}.btn{border:0;border-radius:15px;background:#d89db9;color:white;padding:0 17px;font-weight:600}.small{font-size:12px;color:var(--muted)}h2{font-size:18px;margin:0 0 12px}h3{font-size:14px;margin:0 0 8px}
+.item{padding:12px 0;border-bottom:1px solid var(--line)}.item:last-child{border:0}.empty{text-align:center;color:var(--muted);padding:40px 10px}
+input,select{width:100%;border:1px solid var(--line);border-radius:14px;padding:11px;background:#fffdfd;font:inherit;color:var(--text);margin:6px 0 12px}.row{display:flex;gap:9px}.row>*{flex:1}.danger{background:#f7e7ed;color:#9e5578}.setting{margin-top:8px}
+textarea.key{min-height:75px}.hint{background:#fbf5f9;border-radius:14px;padding:11px;font-size:12px;color:#806f7c;line-height:1.55}
+.badge{display:inline-block;background:#f3dce7;color:#a06482;padding:4px 8px;border-radius:10px;font-size:11px;margin-bottom:8px}
+@media(max-width:500px){.chat{height:57vh}.app{padding-top:12px}.brand{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top">
+  <div><div class="brand">岁岁廿</div><div class="sub">把日子留在这里。</div></div>
+  <nav>
+    <button class="nav active" data-page="chat">聊</button>
+    <button class="nav" data-page="diary">日记</button>
+    <button class="nav" data-page="memory">记得</button>
+    <button class="nav" data-page="settings">设置</button>
+  </nav>
+</header>
+
+<section id="chat" class="page active">
+  <div class="card">
+    <div id="chatbox" class="chat"></div>
+    <div class="composer">
+      <textarea id="msg" rows="2" placeholder="随便说点什么……"></textarea>
+      <button class="btn" id="send">发送</button>
+    </div>
+  </div>
+</section>
+
+<section id="diary" class="page">
+  <div class="card"><h2>日记</h2><div id="diaryList"></div></div>
+</section>
+
+<section id="memory" class="page">
+  <div class="card"><h2>记得</h2><div class="hint">这里放岁岁廿慢慢记住的东西。你可以随时删掉不想留下的内容。</div><div id="memoryList"></div></div>
+</section>
+
+<section id="settings" class="page">
+  <div class="card">
+    <h2>AI 设置</h2>
+    <div class="small">OpenRouter API Key</div>
+    <textarea class="key" id="key" placeholder="sk-or-v1-……"></textarea>
+    <div class="hint">Key 只保存在这台设备的浏览器 localStorage，不写进 GitHub 文件。不要把 Key 发给任何人。</div>
+    <div class="row">
+      <button class="btn" id="saveKey">保存 Key</button>
+      <button class="btn danger" id="clearKey">清除 Key</button>
+    </div>
+    <div class="setting">
+      <div class="small">模型</div>
+      <select id="model">
+        <option value="openrouter/free">openrouter/free（自动选择免费模型）</option>
+      </select>
+    </div>
+  </div>
+  <div class="card">
+    <h2>数据</h2>
+    <div class="row">
+      <button class="btn" id="export">导出数据</button>
+      <button class="btn danger" id="clearData">清空本机数据</button>
+    </div>
+    <p class="small">聊天、日记、记忆都默认保存在本机浏览器。</p>
+  </div>
+</section>
+</div>
+
+<script>
+const SKEY="sui_nian_state_v3";
+let state=JSON.parse(localStorage.getItem(SKEY)||'null')||{
+  messages:[],diary:[],memories:[],key:"",model:"openrouter/free"
+};
+const $=id=>document.getElementById(id);
+function save(){localStorage.setItem(SKEY,JSON.stringify(state))}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function renderChat(){
+  const box=$("chatbox");
+  if(!state.messages.length){box.innerHTML='<div class="empty">先随便跟我说一句。<br>不用想“该怎么记”。</div>';return}
+  box.innerHTML=state.messages.map(m=>`<div class="bubble ${m.role==='user'?'me':'ai'}">${esc(m.content)}</div>`).join('');
+  box.scrollTop=box.scrollHeight;
+}
+function renderDiary(){
+  $("diaryList").innerHTML=state.diary.length?state.diary.slice().reverse().map(d=>`<div class="item"><div class="small">${new Date(d.time).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div><div style="margin-top:5px;white-space:pre-wrap">${esc(d.text)}</div></div>`).join(''):'<div class="empty">还没有日记。</div>';
+}
+function renderMemory(){
+  $("memoryList").innerHTML=state.memories.length?state.memories.slice().reverse().map((m,i)=>`<div class="item"><span class="badge">${esc(m.type||'记忆')}</span><div>${esc(m.text)}</div><div class="small">${esc(m.time||'')}</div></div>`).join(''):'<div class="empty">还没有记住什么。</div>';
+}
+function render(){renderChat();renderDiary();renderMemory()}
+function systemPrompt(){
+ return `你是“岁岁廿”，一个长期陪伴用户的AI生活手帐。你说话自然、简短、像熟人聊天，不要文艺腔、不要鸡汤、不要机械地总结用户。保留用户原本的口头表达、语气、梗和情绪，不要擅自美化。
+你的工作：
+1. 正常聊天时先正常聊天，不要每句话都说“我记住了”。
+2. 从用户的话里判断是否有值得长期保存的信息、未来计划、明确提醒、生活事件。
+3. 如果真的值得写日记，返回一个简短、像用户自己写的日记片段；不要改成散文。
+4. 如果没有必要记录，就返回空数组。
+5. 时间以当前时间为准；用户说“明天、下周”等，要结合当前日期理解。
+6. 不要编造用户没有说过的事实。
+
+必须只返回JSON，不要markdown：
+{"reply":"给用户的正常回复","memory_add":[{"text":"值得长期记住的内容","type":"偏好/人物/习惯/计划/其他"}],"diary_add":[{"text":"像用户自己写的一小段日记"}],"reminder_add":[{"text":"提醒内容","when":"明确时间；无法确定则留空"}]}
+`;
+}
+async function askAI(text){
+ const key=state.key.trim();
+ if(!key) return {reply:"你还没把 OpenRouter Key 放进来。去「设置」里贴进去，保存后就可以正常聊天了。",memory_add:[],diary_add:[],reminder_add:[]};
+ const context=state.messages.slice(-12).map(x=>`${x.role==='user'?'用户':'岁岁廿'}：${x.content}`).join('\n');
+ const memories=state.memories.slice(-20).map(x=>x.text).join('\n');
+ const body={
+   model:state.model,
+   messages:[
+    {role:"system",content:systemPrompt()+`\n当前时间：${new Date().toLocaleString('zh-CN')}\n已有长期记忆：\n${memories||'无'}\n最近对话：\n${context}`},
+    {role:"user",content:text}
+   ],
+   temperature:.75
+ };
+ const r=await fetch("https://openrouter.ai/api/v1/chat/completions",{
+   method:"POST",headers:{
+    "Content-Type":"application/json",
+    "Authorization":"Bearer "+key,
+    "HTTP-Referer":location.href,
+    "X-Title":"岁岁廿"
+   },body:JSON.stringify(body)
+ });
+ if(!r.ok){let e=await r.text();throw new Error("AI 请求失败："+e.slice(0,300))}
+ const j=await r.json();
+ let out=j?.choices?.[0]?.message?.content||"";
+ out=out.replace(/^```json\s*/,"").replace(/```$/,"").trim();
+ try{return JSON.parse(out)}catch{return {reply:out||"刚刚 AI 没有返回内容。",memory_add:[],diary_add:[],reminder_add:[]}}
+}
+async function send(){
+ const el=$("msg"), text=el.value.trim(); if(!text)return;
+ state.messages.push({role:"user",content:text,time:Date.now()});save();renderChat();el.value="";
+ const wait={role:"assistant",content:"……"};state.messages.push(wait);renderChat();
+ try{
+  const result=await askAI(text);
+  state.messages.pop();state.messages.push({role:"assistant",content:result.reply||"嗯。",time:Date.now()});
+  (result.memory_add||[]).forEach(x=>state.memories.push({text:x.text,type:x.type,time:new Date().toLocaleString('zh-CN')}));
+  (result.diary_add||[]).forEach(x=>state.diary.push({text:x.text,time:Date.now()}));
+  save();render();
+ }catch(e){state.messages.pop();state.messages.push({role:"assistant",content:"这次没连上 AI：\n"+e.message+"\n\n你可以检查「设置」里的 Key，或者稍后再试。",time:Date.now()});save();render()}
+}
+document.querySelectorAll(".nav").forEach(b=>b.onclick=()=>{document.querySelectorAll(".nav").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));$(b.dataset.page).classList.add("active")});
+$("send").onclick=send;$("msg").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});
+$("saveKey").onclick=()=>{state.key=$("key").value.trim();state.model=$("model").value;save();alert("保存好了。");};
+$("clearKey").onclick=()=>{state.key="";$("key").value="";save();};
+$("export").onclick=()=>{const blob=new Blob([JSON.stringify({...state,key:""},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="岁岁廿-数据.json";a.click();};
+$("clearData").onclick=()=>{if(confirm("确定清空这台设备上的岁岁廿数据吗？")){localStorage.removeItem(SKEY);location.reload()}};
+$("key").value=state.key;$("model").value=state.model;render();
+</script>
+</body>
+</html>
