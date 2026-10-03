@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7dbe8">
+<title>岁岁廿</title>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#fff8fb;--card:rgba(255,255,255,.82);--pink:#d98eaa;--pink2:#f1c9d8;--text:#51464c;--muted:#9b8e95;--line:#eadde3}
+body{margin:0;background:linear-gradient(160deg,#fff8fb,#f8f2fa);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif}
+button,input,textarea,select{font:inherit}
+.app{max-width:760px;margin:auto;min-height:100vh;padding-bottom:90px}
+header{padding:24px 20px 12px;position:sticky;top:0;z-index:5;background:rgba(255,248,251,.88);backdrop-filter:blur(14px)}
+.logo{font-size:27px;font-weight:800;letter-spacing:2px}.sub{font-size:12px;color:var(--muted);margin-top:4px}
+.page{display:none;padding:12px 16px}.page.active{display:block}
+.card{background:var(--card);border:1px solid rgba(234,221,227,.8);border-radius:22px;padding:16px;margin-bottom:13px;box-shadow:0 8px 28px rgba(80,50,65,.05)}
+h2{font-size:19px;margin:0 0 12px}.small{font-size:12px;color:var(--muted)}
+.chat{min-height:55vh;display:flex;flex-direction:column;gap:10px}
+.bubble{max-width:86%;padding:11px 14px;border-radius:18px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.me{align-self:flex-end;background:#f3d1df;border-bottom-right-radius:6px}.ai{align-self:flex-start;background:white;border:1px solid var(--line);border-bottom-left-radius:6px}
+.composer{position:fixed;left:50%;bottom:65px;transform:translateX(-50%);width:min(728px,calc(100% - 24px));display:flex;gap:8px;background:rgba(255,255,255,.94);padding:9px;border:1px solid var(--line);border-radius:20px;box-shadow:0 8px 30px rgba(70,40,55,.12);z-index:10}
+.composer textarea{flex:1;border:0;outline:0;background:#fff8fb;border-radius:14px;padding:10px;resize:none;min-height:42px;max-height:110px}
+.btn{border:0;border-radius:13px;padding:9px 13px;background:#f1c9d8;color:#654b56;font-weight:600}.btn.ghost{background:#f7eef2}.btn.danger{background:#f6d9df}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(760px,100%);height:62px;background:rgba(255,255,255,.94);backdrop-filter:blur(15px);border-top:1px solid var(--line);display:flex;z-index:20}
+nav button{flex:1;border:0;background:transparent;color:#9b8e95;font-size:11px}nav button.on{color:#bd6688;font-weight:700}
+nav span{display:block;font-size:19px;margin-bottom:2px}
+.entry{padding:12px 0;border-bottom:1px solid var(--line)}.entry:last-child{border-bottom:0}
+.timeline{overflow-x:auto;padding:8px 0 14px}
+.month{min-width:680px;position:relative}
+.days{display:grid;grid-template-columns:repeat(31,1fr);gap:2px;font-size:8px;color:#a89ba1;margin-bottom:18px}
+.days div{text-align:center}
+.event{position:relative;height:58px;margin:8px 0}
+.event .bar{position:absolute;top:10px;height:30px;border-radius:15px;background:#f0c4d5;opacity:.85}
+.event .label{position:absolute;top:14px;z-index:1;font-size:12px;padding-left:10px;white-space:nowrap}
+.note{margin:10px 0;padding:10px 13px;background:#fffdf1;border-radius:9px;transform:rotate(-.4deg);font-size:13px}
+.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}
+input,select{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px;background:white;outline:0}
+textarea.long{width:100%;border:1px solid var(--line);border-radius:14px;padding:11px;min-height:100px;resize:vertical;outline:0}
+.mem{display:inline-block;background:#f8e3eb;border-radius:15px;padding:7px 10px;margin:4px;font-size:12px}
+.modal{display:none;position:fixed;inset:0;background:rgba(50,35,42,.25);z-index:30;align-items:flex-end;justify-content:center}
+.sheet{width:min(760px,100%);background:#fffafd;border-radius:26px 26px 0 0;padding:20px;max-height:85vh;overflow:auto}
+.sheet label{display:block;font-size:12px;color:var(--muted);margin:12px 0 6px}
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}.photo-grid img{width:100%;aspect-ratio:1;border-radius:12px;object-fit:cover}
+.warn{background:#fff3d9;border-radius:14px;padding:10px;font-size:12px;color:#7e684d}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="logo">岁岁廿</div><div class="sub" id="today"></div></header>
+
+<section class="page active" id="chatPage">
+  <div class="card chat" id="chat"></div>
+</section>
+
+<section class="page" id="timelinePage">
+  <div class="card"><h2>时间线</h2><div class="small">不是任务表。只是把你正在经历的事情，像手帐里的荧光笔一样画出来。</div></div>
+  <div class="card timeline"><div id="timeline"></div></div>
+</section>
+
+<section class="page" id="diaryPage">
+  <div class="card"><h2>今天</h2><div class="small" id="diaryDate"></div><div id="diaryText" style="line-height:1.8;margin-top:12px"></div></div>
+  <div class="card"><h2>今天聊过的</h2><div id="todayEntries"></div></div>
+</section>
+
+<section class="page" id="memoryPage">
+  <div class="card"><h2>记得的东西</h2><div class="small">重要的长期东西会留在这里，原话也会保留。</div><div id="memories" style="margin-top:10px"></div></div>
+  <div class="card"><h2>提醒</h2><div id="reminders"></div><button class="btn" onclick="addReminder()">＋自己加一个提醒</button></div>
+</section>
+
+<section class="page" id="settingsPage">
+  <div class="card">
+    <h2>设置</h2>
+    <div class="small">Key 只保存在这台设备的浏览器里，不会写进 GitHub 文件。</div>
+    <label style="display:block;margin:12px 0 6px;font-size:12px;color:var(--muted)">OpenRouter Key</label>
+    <input id="keyInput" type="password" placeholder="sk-or-v1-……">
+    <div class="row" style="margin-top:8px"><button class="btn" onclick="saveKey()">保存 Key</button><button class="btn ghost" onclick="clearKey()">清除 Key</button></div>
+  </div>
+  <div class="card">
+    <h2>备份</h2>
+    <div class="small" style="margin-bottom:10px">聊天、日记、时间线、记忆、提醒都会导出。</div>
+    <div class="row"><button class="btn" onclick="exportData()">导出备份</button><button class="btn ghost" onclick="document.getElementById('importFile').click()">导入备份</button></div>
+    <input id="importFile" type="file" accept=".json" hidden onchange="importData(this)">
+  </div>
+  <div class="card"><div class="warn">提醒：GitHub Pages 本身是网页。页面关闭后，iPhone 是否能准时弹系统通知取决于浏览器权限，所以重要事情不要只靠网页提醒。</div></div>
+</section>
+
+<div class="composer">
+  <textarea id="msg" rows="1" placeholder="跟岁岁廿说点什么……"></textarea>
+  <button class="btn" onclick="send()">发送</button>
+</div>
+
+<nav>
+<button class="on" data-page="chatPage"><span>♡</span>聊天</button>
+<button data-page="timelinePage"><span>〰</span>时间线</button>
+<button data-page="diaryPage"><span>✎</span>日记</button>
+<button data-page="memoryPage"><span>♡</span>记得</button>
+<button data-page="settingsPage"><span>⚙</span>设置</button>
+</nav>
+</div>
+
+<script>
+const STORE='sui_nian_v6';
+const KEY='sui_nian_openrouter_key_v2';
+
+let db=load();
+function load(){
+  try{
+    const x=JSON.parse(localStorage.getItem(STORE)||'{}');
+    return Object.assign({messages:[],memories:[],reminders:[],events:[],diaries:{}},x);
+  }catch(e){return {messages:[],memories:[],reminders:[],events:[],diaries:{}}}
+}
+function save(){localStorage.setItem(STORE,JSON.stringify(db))}
+function key(){return localStorage.getItem(KEY)||''}
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function isoDay(d=new Date()){return d.toISOString().slice(0,10)}
+function saveKey(){localStorage.setItem(KEY,$('keyInput').value.trim());$('keyInput').value=localStorage.getItem(KEY)||'';alert('保存好了，下次打开也会保留。')}
+function clearKey(){localStorage.removeItem(KEY);$('keyInput').value=''}
+function addMessage(role,content,photos=[]){db.messages.push({id:Date.now()+Math.random(),role,content,time:new Date().toISOString(),photos});save()}
+function renderChat(){
+  const box=$('chat');
+  if(!db.messages.length){box.innerHTML='<div class="small" style="margin:auto">从这里开始就好。想到什么就说什么，不用先想它属于“日记”还是“提醒”。</div>';return}
+  box.innerHTML=db.messages.slice(-80).map(m=>`<div class="bubble ${m.role==='user'?'me':'ai'}">${esc(m.content)}</div>`).join('');
+  box.scrollTop=box.scrollHeight;
+}
+function todayEntries(){
+  const arr=db.messages.filter(x=>x.time.slice(0,10)===isoDay()&&x.role==='user');
+  $('todayEntries').innerHTML=arr.length?arr.map(x=>`<div class="entry">${esc(x.content)}<div class="small">${new Date(x.time).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}</div></div>`).join(''):'<div class="small">今天还没留下什么。</div>';
+}
+function makeDiary(){
+  const arr=db.messages.filter(x=>x.role==='user'&&x.time.slice(0,10)===isoDay());
+  $('diaryDate').textContent=new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric'});
+  $('diaryText').textContent=arr.length?arr.map(x=>x.content).join(' '):'今天还没记什么。';
+}
+function renderMemories(){
+  $('memories').innerHTML=db.memories.length?db.memories.slice().reverse().map(x=>`<span class="mem">${esc(x.text)}</span>`).join(''):'<div class="small">还没有特别要记住的东西。</div>';
+  const rs=db.reminders.filter(x=>!x.done).sort((a,b)=>new Date(a.at)-new Date(b.at));
+  $('reminders').innerHTML=rs.length?rs.map(x=>`<div class="entry"><div>${esc(x.text)}</div><div class="small">${new Date(x.at).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})} <button class="btn ghost" style="padding:4px 8px;float:right" onclick="doneReminder('${x.id}')">完成</button></div></div>`).join(''):'<div class="small" style="margin-bottom:10px">还没有提醒。</div>';
+}
+function renderTimeline(){
+  const now=new Date(), y=now.getFullYear(), mo=now.getMonth(), days=new Date(y,mo+1,0).getDate();
+  const ev=db.events.filter(e=>e.start.slice(0,7)===`${y}-${String(mo+1).padStart(2,'0')}`);
+  let s='<div class="month"><div class="days">';
+  for(let i=1;i<=days;i++)s+=`<div>${i}</div>`;s+='</div>';
+  if(!ev.length)s+='<div class="small" style="padding:30px 0;text-align:center">这个月还没有连续的事情。聊天时自然说出来，我会慢慢画上去。</div>';
+  ev.forEach(e=>{
+    const st=new Date(e.start+'T12:00:00'), en=new Date((e.end||e.start)+'T12:00:00');
+    let a=st.getDate(), b=Math.min(days,en.getDate()), left=((a-1)/days)*100, width=((b-a+1)/days)*100;
+    s+=`<div class="event"><div class="bar" style="left:${left}%;width:${width}%"></div><div class="label">${esc(e.text)}</div></div>`;
+  });
+  s+='</div>'; $('timeline').innerHTML=s;
+}
+async function send(){
+  const text=$('msg').value.trim();if(!text)return;
+  $('msg').value='';
+  addMessage('user',text);renderChat();
+  addMessage('assistant','……');renderChat();
+  try{
+    const result=await askAI(text);
+    db.messages.pop();
+    addMessage('assistant',result.reply||'嗯。');
+    if(result.memory_add)result.memory_add.forEach(x=>{if(x.text)db.memories.push({text:x.text,time:new Date().toISOString()})});
+    if(result.reminder_add)result.reminder_add.forEach(x=>{if(x.text&&x.when){const d=new Date(x.when);if(!isNaN(d))db.reminders.push({id:Date.now()+Math.random(),text:x.text,at:d.toISOString(),done:false})}});
+    if(result.event_add)result.event_add.forEach(x=>{if(x.text&&x.start)db.events.push({text:x.text,start:x.start,end:x.end||x.start})});
+    save();renderAll();
+  }catch(e){
+    db.messages.pop();addMessage('assistant','刚才 AI 没连上：'+e.message+'\\n\\n不过你刚刚说的话已经留在本地了。');renderAll();
+  }
+}
+function promptData(){
+ return `你是“岁岁廿”，是一个长期生活记录助手。你说话像熟人，短一点、自然一点，不要客服腔，不要文艺腔，不要把普通聊天强行总结成鸡汤。
+你要从用户的话里自然判断：值得长期记住的东西、提醒、正在持续的事情。
+绝对不要编造。
+如果用户只是聊天，就正常聊天，数组可以为空。
+用户说“明天、下周、下个月”等，要根据当前时间换算成明确日期。
+如果一件事从某天开始到某天结束，可以用event_add记录连续时间；如果只是当天发生，就不用创建event。
+必须只返回JSON，不要markdown：
+{"reply":"自然回复","memory_add":[{"text":"长期值得记住的原话或简短事实"}],"reminder_add":[{"text":"提醒内容","when":"YYYY-MM-DD HH:mm"}],"event_add":[{"text":"事情名称","start":"YYYY-MM-DD","end":"YYYY-MM-DD"}]}
+`;
+}
+async function askAI(text){
+ const k=key();
+ if(!k)return {reply:'你还没设置 OpenRouter Key。去“设置”里贴进去保存就行。',memory_add:[],reminder_add:[],event_add:[]};
+ const recent=db.messages.slice(-20).map(x=>(x.role==='user'?'用户':'岁岁廿')+'：'+x.content).join('\n');
+ const memories=db.memories.slice(-30).map(x=>x.text).join('\n');
+ const body={model:'openrouter/free',temperature:.7,messages:[
+   {role:'system',content:promptData()+`\n当前时间：${new Date().toLocaleString('zh-CN')}\n已有记忆：${memories||'无'}\n最近聊天：\n${recent}`},
+   {role:'user',content:text}
+ ]};
+ const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{
+   method:'POST',
+   headers:{'Content-Type':'application/json','Authorization':'Bearer '+k,'HTTP-Referer':location.href,'X-Title':'岁岁廿'},
+   body:JSON.stringify(body)
+ });
+ if(!r.ok){const t=await r.text();throw new Error('AI 请求失败（'+r.status+'）：'+t.slice(0,220))}
+ const j=await r.json();
+ let out=j&&j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||'';
+ out=String(out).replace(/^```json\s*/i,'').replace(/```\s*$/,'').trim();
+ try{return JSON.parse(out)}catch(e){return {reply:out||'我收到啦。',memory_add:[],reminder_add:[],event_add:[]}}
+}
+function addReminder(){
+ const text=prompt('提醒什么？');if(!text)return;
+ const when=prompt('什么时候？例如：2026-10-06 15:00');if(!when)return;
+ const d=new Date(when);if(isNaN(d)){alert('时间格式没看懂');return}
+ db.reminders.push({id:Date.now(),text,at:d.toISOString(),done:false});save();renderAll();
+}
+function doneReminder(id){const x=db.reminders.find(x=>String(x.id)===String(id));if(x)x.done=true;save();renderAll()}
+function exportData(){
+ const blob=new Blob([JSON.stringify({version:6,exportedAt:new Date().toISOString(),...db},null,2)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='岁岁廿-备份-'+isoDay()+'.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importData(input){
+ const f=input.files[0];if(!f)return;
+ const r=new FileReader();
+ r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.messages)throw Error();db=Object.assign({messages:[],memories:[],reminders:[],events:[],diaries:{}},x);save();renderAll();alert('导入好了。')}catch(e){alert('这个备份文件不对。')}};
+ r.readAsText(f);
+}
+function renderAll(){
+ const d=new Date();$('today').textContent=d.toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+ renderChat();renderTimeline();makeDiary();todayEntries();renderMemories();
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+ document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$(b.dataset.page).classList.add('active');
+});
+$('msg').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+$('keyInput').value=key();
+renderAll();
+</script>
+</body>
+</html>
